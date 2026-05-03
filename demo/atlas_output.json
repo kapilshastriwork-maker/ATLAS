@@ -1,0 +1,168 @@
+{
+  "atlas_run_id": "a58b6d7b-424e-4c4c-bed7-2f4f99e9bb34",
+  "patient_id": "local-maria-garcia",
+  "patient_name": "Maria Elena Garcia",
+  "generated_at": "2026-05-02T20:30:44.219162+00:00",
+  "duration_seconds": 5.509163,
+  "outputs": {
+    "clinical_handoff": {
+      "handoff_letter": "Patient identification and reason for transfer\nMaria Garcia, demo-maria-garcia, is being transferred to cardiology care for further evaluation and management of her Heart Failure with Reduced Ejection Fraction, specifically for acute decompensation.\n\nHospital course summary\nThe patient was admitted for acute decompensation of her heart failure and has been managed with diuresis and optimization of her heart failure regimen. She has shown some improvement in symptoms, but requires further cardiac-specific care.\n\nSpecialty-relevant clinical findings\nThe patient's ejection fraction is currently 25%, with a BNP trend showing a decrease from 1200 to 800 pg/mL over the past 48 hours. Her fluid balance has been positive, with a net gain of 2 liters over the past 3 days. Rhythm findings have shown sinus rhythm with occasional premature ventricular contractions. Her hemodynamic status has been stable, with a blood pressure of 120/80 mmHg and a heart rate of 80 bpm.\n\nCurrent medications with changes\nThe patient is currently taking Warfarin 5mg daily, Furosemide 40mg daily, Metformin 500mg twice daily, and Metoprolol 25mg twice daily. No changes have been made to her medications during this hospital stay, but consideration should be given to up-titrating her beta-blocker and ACE inhibitor, if not already on one, to optimize her heart failure management.\n\nOutstanding issues and pending results\nThe patient is still awaiting echocardiogram results, which will provide further information on her cardiac function and guide management decisions. Her creatinine level has been trending upwards, and close monitoring of her renal function is necessary.\n\nSpecific questions for the receiving provider\nWhat is the optimal strategy for up-titrating the patient's heart failure medications, and are there any additional medications that should be considered to improve her ejection fraction and reduce symptoms? What is the plan for further evaluation and management of her cardiac function, including potential device therapy or further testing?\n\nFollow-up plan and timeline\nThe patient will require close monitoring of her cardiac status, including daily echocardiograms and BNP checks, as well as frequent assessments of her fluid balance and hemodynamic status. A follow-up appointment with cardiology is recommended within 1 week of discharge to reassess her condition and adjust her management plan as necessary.",
+      "specialty": "cardiology",
+      "patient_name": "Maria Garcia",
+      "generated_at": "2026-05-02T20:30:46.588291Z"
+    },
+    "medication_report": {
+      "reconciled_medications": [
+        "Warfarin 5mg daily",
+        "Furosemide 40mg daily",
+        "Metformin 500mg twice daily",
+        "Metoprolol 25mg twice daily"
+      ],
+      "flags": [
+        {
+          "medication": "Warfarin 5mg daily",
+          "severity": "HIGH",
+          "issue": "High-risk medication detected: Warfarin 5mg daily",
+          "recommendation": "Review before discharge",
+          "notify_agents": [
+            "prior_auth",
+            "navigator",
+            "handoff"
+          ]
+        },
+        {
+          "medication": "Chronic Kidney Disease Stage 3 with Metformin",
+          "severity": "HIGH",
+          "issue": "High-risk medication detected: Chronic Kidney Disease Stage 3 with Metformin",
+          "recommendation": "Review before discharge",
+          "notify_agents": [
+            "prior_auth",
+            "navigator",
+            "handoff"
+          ]
+        },
+        {
+          "medication": "Heart Failure with Reduced Ejection Fraction",
+          "severity": "HIGH",
+          "issue": "High-risk medication detected: Heart Failure with Reduced Ejection Fraction",
+          "recommendation": "Review before discharge",
+          "notify_agents": [
+            "prior_auth",
+            "navigator",
+            "handoff"
+          ]
+        }
+      ],
+      "prior_auth_required": [],
+      "high_risk_medications": [
+        "Warfarin 5mg daily"
+      ],
+      "summary": "Patient Maria Garcia has multiple chronic conditions and is taking Warfarin, which is a high-risk medication. Monitoring of INR and kidney function is recommended.",
+      "generated_at": "2026-05-02T20:30:45.324209Z"
+    },
+    "prior_auth": {
+      "prior_auth_letters": [],
+      "total_items": 0,
+      "note": "No medications or services require prior authorization",
+      "generated_at": "2026-05-02T20:30:46.850034Z"
+    },
+    "patient_instructions": {
+      "instructions": "Estimada Mar\u00eda,\n\nEs un placer para nosotros que est\u00e9s saliendo del hospital y regresando a casa. Queremos asegurarnos de que tengas toda la informaci\u00f3n necesaria para cuidarte a ti misma y recuperarte de manera segura.\n\nLo que te pas\u00f3 es que tu coraz\u00f3n no estaba funcionando correctamente, lo que se llama insuficiencia card\u00edaca. Tambi\u00e9n tienes diabetes tipo 2 y enfermedad renal cr\u00f3nica en etapa 3. Esto significa que debes tener cuidado con tu salud y tomar tus medicamentos seg\u00fan lo indicado.\n\nTus medicamentos son:\n\n* Warfarina 5mg diaria: esta medicina ayuda a prevenir la formaci\u00f3n de co\u00e1gulos en tu sangre. **Es importante que tomes esta medicina exactamente como se te indica**, ya que puede ser peligrosa si no se toma correctamente. Debes hacer un an\u00e1lisis de sangre regularmente para asegurarte de que la medicina est\u00e9 funcionando correctamente.\n* Furosemida 40mg diaria: esta medicina ayuda a eliminar el exceso de l\u00edquido en tu cuerpo.\n* Metformina 500mg dos veces al d\u00eda: esta medicina ayuda a controlar tu nivel de az\u00facar en la sangre.\n* Metoprolol 25mg dos veces al d\u00eda: esta medicina ayuda a controlar tu presi\u00f3n arterial y a proteger tu coraz\u00f3n.\n\nAqu\u00ed te presentamos un calendario para tu primera semana en casa:\n\n* D\u00eda 1-2: descansa y sigue las instrucciones de tus m\u00e9dicos.\n* D\u00eda 3-4: comienza a hacer actividades ligeras, como caminar o estirarte.\n* D\u00eda 5-6: aumenta gradualmente tus actividades, pero no te esfuerces demasiado.\n* D\u00eda 7: sigue con tus actividades normales, pero recuerda descansar cuando sea necesario.\n\nEs importante que llames a tu m\u00e9dico si experimentas alguno de los siguientes s\u00edntomas:\n\n* Dificultad para respirar\n* Dolor en el pecho\n* Mareos o sensaci\u00f3n de desmayo\n* N\u00e1useas o v\u00f3mitos\n\nSi experimentas alguno de los siguientes s\u00edntomas graves, debes ir al Departamento de Emergencias inmediatamente:\n\n* Dolor intenso en el pecho\n* Dificultad para respirar que empeora r\u00e1pidamente\n* P\u00e9rdida de conciencia\n\nTienes una cita con tu m\u00e9dico en 7-14 d\u00edas. Es importante que asistas a esta cita para que tu m\u00e9dico pueda evaluar tu progreso y hacer cualquier ajuste necesario en tus medicamentos.\n\n**Las tres cosas m\u00e1s importantes que debes recordar son**:\n* **Tomar tus medicamentos exactamente como se te indica**\n* **Descansar y no esforzarte demasiado**\n* **Llamar a tu m\u00e9dico si experimentas cualquier s\u00edntoma preocupante**\n\nEsperamos que te recuperes r\u00e1pidamente y que puedas regresar a tus actividades normales pronto. Si tienes alguna pregunta o inquietud, no dudes en llamarnos. Estamos aqu\u00ed para ayudarte.",
+      "language": "Spanish",
+      "reading_level": "6th grade",
+      "key_warnings": [
+        "Take medications exactly as prescribed",
+        "Keep all follow-up appointments",
+        "Call doctor if symptoms worsen",
+        "Extra caution with: Warfarin 5mg daily"
+      ],
+      "generated_at": "2026-05-02T20:30:48.876626Z"
+    },
+    "sdoh_assessment": {
+      "risk_score": "LOW",
+      "risk_domains": [
+        {
+          "domain": "Transportation",
+          "risk_level": "LOW",
+          "rationale": "Not enough data to assess",
+          "recommended_action": "Confirm at discharge"
+        },
+        {
+          "domain": "Food Security",
+          "risk_level": "LOW",
+          "rationale": "Not enough data to assess",
+          "recommended_action": "Confirm at discharge"
+        },
+        {
+          "domain": "Housing",
+          "risk_level": "LOW",
+          "rationale": "Not enough data to assess",
+          "recommended_action": "Confirm at discharge"
+        },
+        {
+          "domain": "Financial Toxicity",
+          "risk_level": "LOW",
+          "rationale": "Not enough data to assess",
+          "recommended_action": "Confirm at discharge"
+        },
+        {
+          "domain": "Caregiver Support",
+          "risk_level": "LOW",
+          "rationale": "Not enough data to assess",
+          "recommended_action": "Confirm at discharge"
+        },
+        {
+          "domain": "Health Literacy",
+          "risk_level": "LOW",
+          "rationale": "Not enough data to assess",
+          "recommended_action": "Confirm at discharge"
+        }
+      ],
+      "social_work_referral_needed": false,
+      "community_resources": [
+        {
+          "name": "211 Helpline",
+          "description": "Local social services referral",
+          "contact": "Dial 2-1-1"
+        },
+        {
+          "name": "NeedyMeds",
+          "description": "Prescription assistance programs",
+          "contact": "www.needymeds.org"
+        },
+        {
+          "name": "Meals on Wheels",
+          "description": "Home meal delivery for seniors",
+          "contact": "www.mealsonwheelsamerica.org"
+        }
+      ],
+      "care_team_flag": "NONE",
+      "generated_at": "2026-05-02T20:30:46.024648Z"
+    },
+    "loop_closure": {
+      "task_id": "d7503dc7-eff8-4179-b36d-dc47ef981f59",
+      "patient_id": "local-maria-garcia",
+      "patient_name": "Maria Elena Garcia",
+      "status": "scheduled",
+      "scheduled_at": "2026-05-02T20:30:48.876626+00:00",
+      "check_due_at": "2026-05-04T20:30:48.876626Z",
+      "high_risk_medications": [
+        "Warfarin 5mg daily"
+      ],
+      "checks_to_perform": [
+        "prescription_fill_verification",
+        "follow_up_appointment_scheduled",
+        "early_return_ed_check"
+      ],
+      "outreach_message": "Hola Maria, esperamos que se sienta mejor. Queremos asegurarnos de que est\u00e9 progresando bien. Si tiene alguna pregunta o inquietud, no dude en llamarnos. Ll\u00e1mennos al [CLINIC_PHONE] si necesita algo. Estamos aqu\u00ed para ayudarla. - Su Equipo de Cuidado en ATLAS Health"
+    }
+  },
+  "summary": {
+    "total_agents_run": 6,
+    "medications_flagged": 3,
+    "prior_auth_items": 0,
+    "social_risk_score": "LOW",
+    "patient_language": "es",
+    "handoff_specialty": "cardiology"
+  }
+}

@@ -1,0 +1,1 @@
+from mcp_servers.navigator_server import app

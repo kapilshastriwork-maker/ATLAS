@@ -1,0 +1,9 @@
+groq
+httpx
+fastapi
+uvicorn[standard]
+pydantic
+python-dotenv
+pytest
+pytest-asyncio
+mcp
