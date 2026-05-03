@@ -9,7 +9,7 @@ from shared.config import GROQ_MODEL, GROQ_API_KEY, GROQ_MAX_TOKENS, GROQ_TEMPER
 
 app = FastAPI()
 client = Groq(api_key=GROQ_API_KEY)
-mcp = FastMCP("ATLAS Clinical Handoff")
+mcp_server = FastMCP("ATLAS Clinical Handoff")
 
 
 class HandoffRequest(BaseModel):
@@ -116,7 +116,7 @@ Return ONLY the handoff letter text. No markdown formatting. No JSON."""
     }
 
 
-@mcp.tool()
+@mcp_server.tool()
 async def generate_clinical_handoff(
     patient_fhir_context: dict,
     receiving_provider_specialty: str,
@@ -146,8 +146,14 @@ async def health():
     return {"status": "ok", "server": "handoff"}
 
 
+@app.get("/mcp-test")
+async def mcp_test():
+    return {"status": "MCP mounted", "endpoint": "/mcp"}
+
+
 # Mount MCP server to FastAPI app
-app.mount("/mcp", mcp.streamable_http_app())
+mcp_app = mcp_server.streamable_http_app()
+app.mount("/mcp", mcp_app)
 
 
 if __name__ == "__main__":
