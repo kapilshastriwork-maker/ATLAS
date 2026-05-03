@@ -1,16 +1,16 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from datetime import datetime, timezone
 from groq import Groq
 import json
 import re
-from mcp.server.fastmcp import FastMCP
+import uuid
 
 from shared.config import GROQ_MODEL, GROQ_API_KEY, GROQ_MAX_TOKENS, GROQ_TEMPERATURE
 
 app = FastAPI()
 client = Groq(api_key=GROQ_API_KEY)
-mcp_server = FastMCP("ATLAS Prior Authorization")
 
 
 class PriorAuthRequest(BaseModel):
@@ -20,8 +20,8 @@ class PriorAuthRequest(BaseModel):
     insurance_plan_type: str = "commercial"
 
 
-def draft_prior_auth(patient_fhir_context: dict, medications_requiring_auth: list = [], 
-                   services_requiring_auth: list = [], insurance_plan_type: str = "commercial") -> dict:
+def generate_prior_auth(patient_fhir_context: dict, medications_requiring_auth: list = [], 
+                       services_requiring_auth: list = [], insurance_plan_type: str = "commercial") -> dict:
     patient = patient_fhir_context.get("patient", {})
     conditions = patient_fhir_context.get("conditions", [])
     labs = patient_fhir_context.get("labs", [])
@@ -37,23 +37,10 @@ def draft_prior_auth(patient_fhir_context: dict, medications_requiring_auth: lis
         patient_name = "Unknown Patient"
 
     birth_date = patient.get("birthDate", "Unknown")
-
     primary_condition = conditions[0].get("code", {}).get("text", "Relevant medical condition") if conditions else "Relevant medical condition"
-    
-    condition_text = "\n".join([
-        f"- {c.get('code', {}).get('text', 'Condition')}"
-        for c in conditions[:5]
-    ]) or "No conditions documented"
-
-    labs_text = "\n".join([
-        f"- {l.get('code', {}).get('text', 'Lab')}: {l.get('value', {}).get('value', 'N/A')} {l.get('value', {}).get('unit', '')}"
-        for l in labs[:10]
-    ]) or "No recent labs"
-
-    vitals_text = "\n".join([
-        f"- {v.get('code', {}).get('text', 'Vital')}: {v.get('value', {}).get('value', 'N/A')} {v.get('value', {}).get('unit', '')}"
-        for v in vitals[:5]
-    ]) or "No vitals on record"
+    condition_text = "\n".join([f"- {c.get('code', {}).get('text', 'Condition')}" for c in conditions[:5]]) or "No conditions documented"
+    labs_text = "\n".join([f"- {l.get('code', {}).get('text', 'Lab')}: {l.get('value', {}).get('value', 'N/A')} {l.get('value', {}).get('unit', '')}" for l in labs[:10]]) or "No recent labs"
+    vitals_text = "\n".join([f"- {v.get('code', {}).get('text', 'Vital')}: {v.get('value', {}).get('value', 'N/A')} {v.get('value', {}).get('unit', '')}" for v in vitals[:5]]) or "No vitals on record"
 
     all_items = medications_requiring_auth + services_requiring_auth
 
@@ -130,10 +117,98 @@ Return ONLY the letter text. No markdown. No JSON."""
     }
 
 
+@app.post("/mcp")
+async def mcp_endpoint(request: Request):
+    try:
+        body = await request.json()
+        method = body.get("method", "")
+        msg_id = body.get("id", str(uuid.uuid4()))
+        
+        if method == "initialize":
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "result": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {"tools": {}},
+                    "serverInfo": {"name": "ATLAS Prior Authorization", "version": "1.0.0"}
+                }
+            })
+        
+        elif method == "tools/list":
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "result": {
+                    "tools": [{
+                        "name": "draft_prior_authorization",
+                        "description": "Draft complete prior authorization letters with clinical justification for medications and services requiring insurance approval at discharge.",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "patient_fhir_context": {"type": "object", "description": "Full FHIR patient context"},
+                                "medications_requiring_auth": {"type": "array", "items": {"type": "string"}},
+                                "services_requiring_auth": {"type": "array", "items": {"type": "string"}},
+                                "insurance_plan_type": {"type": "string"}
+                            },
+                            "required": ["patient_fhir_context", "medications_requiring_auth"]
+                        }
+                    }]
+                }
+            })
+        
+        elif method == "tools/call":
+            params = body.get("params", {})
+            tool_name = params.get("name", "")
+            arguments = params.get("arguments", {})
+            
+            if tool_name == "draft_prior_authorization":
+                result = generate_prior_auth(
+                    arguments.get("patient_fhir_context", {}),
+                    arguments.get("medications_requiring_auth", []),
+                    arguments.get("services_requiring_auth", []),
+                    arguments.get("insurance_plan_type", "commercial")
+                )
+                return JSONResponse({
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "result": {"content": [{"type": "text", "text": str(result)}]}
+                })
+            else:
+                return JSONResponse({
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "error": {"code": -32601, "message": f"Tool not found: {tool_name}"}
+                })
+        
+        elif method == "notifications/initialized":
+            return JSONResponse({"jsonrpc": "2.0", "id": msg_id, "result": {}})
+        
+        else:
+            return JSONResponse({"jsonrpc": "2.0", "id": msg_id, "result": {}})
+    
+    except Exception as e:
+        return JSONResponse({"jsonrpc": "2.0", "id": "error", "error": {"code": -32603, "message": str(e)}})
+
+
+@app.get("/mcp")
+async def mcp_get():
+    return JSONResponse({
+        "status": "ok",
+        "protocol": "MCP",
+        "version": "2024-11-05",
+        "server": "ATLAS Prior Authorization"
+    })
+
+
+# Backward compatibility alias
+draft_prior_auth = generate_prior_auth
+
+
 @app.post("/draft-prior-auth")
 async def draft_prior_auth_endpoint(req: PriorAuthRequest):
     try:
-        return draft_prior_auth(
+        return generate_prior_auth(
             req.patient_fhir_context,
             req.medications_requiring_auth,
             req.services_requiring_auth,
@@ -151,29 +226,6 @@ async def health():
 @app.get("/mcp-test")
 async def mcp_test():
     return {"status": "MCP mounted", "endpoint": "/mcp"}
-
-
-@mcp_server.tool()
-async def draft_prior_authorization(
-    patient_fhir_context: dict,
-    medications_requiring_auth: list,
-    services_requiring_auth: list = [],
-    insurance_plan_type: str = "commercial"
-) -> dict:
-    """Draft complete prior authorization letters with clinical 
-    justification for medications and services requiring insurance 
-    approval at discharge."""
-    return draft_prior_auth(
-        patient_fhir_context,
-        medications_requiring_auth,
-        services_requiring_auth,
-        insurance_plan_type
-    )
-
-
-# Mount MCP server to FastAPI app
-mcp_app = mcp_server.streamable_http_app()
-app.mount("/mcp", mcp_app)
 
 
 if __name__ == "__main__":

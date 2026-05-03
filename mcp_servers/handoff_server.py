@@ -1,15 +1,15 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from datetime import datetime, timezone
 from groq import Groq
 import json
-from mcp.server.fastmcp import FastMCP
+import uuid
 
 from shared.config import GROQ_MODEL, GROQ_API_KEY, GROQ_MAX_TOKENS, GROQ_TEMPERATURE
 
 app = FastAPI()
 client = Groq(api_key=GROQ_API_KEY)
-mcp_server = FastMCP("ATLAS Clinical Handoff")
 
 
 class HandoffRequest(BaseModel):
@@ -116,21 +116,86 @@ Return ONLY the handoff letter text. No markdown formatting. No JSON."""
     }
 
 
-@mcp_server.tool()
-async def generate_clinical_handoff(
-    patient_fhir_context: dict,
-    receiving_provider_specialty: str,
-    clinical_question: str = ""
-) -> dict:
-    """Generate a tailored clinical handoff letter from FHIR 
-    patient data, customized for the receiving provider specialty.
-    Used during hospital discharge to communicate patient status
-    to the receiving care provider."""
-    return generate_handoff(
-        patient_fhir_context, 
-        receiving_provider_specialty, 
-        clinical_question
-    )
+@app.post("/mcp")
+async def mcp_endpoint(request: Request):
+    try:
+        body = await request.json()
+        method = body.get("method", "")
+        msg_id = body.get("id", str(uuid.uuid4()))
+        
+        if method == "initialize":
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "result": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {"tools": {}},
+                    "serverInfo": {"name": "ATLAS Clinical Handoff", "version": "1.0.0"}
+                }
+            })
+        
+        elif method == "tools/list":
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "result": {
+                    "tools": [{
+                        "name": "generate_clinical_handoff",
+                        "description": "Generate a tailored clinical handoff letter from FHIR patient data, customized for the receiving provider specialty. Used during hospital discharge to communicate patient status to the receiving care provider.",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "patient_fhir_context": {"type": "object", "description": "Full FHIR patient context"},
+                                "receiving_provider_specialty": {"type": "string", "description": "Specialty of receiving provider"},
+                                "clinical_question": {"type": "string", "description": "Specific clinical question"}
+                            },
+                            "required": ["patient_fhir_context", "receiving_provider_specialty"]
+                        }
+                    }]
+                }
+            })
+        
+        elif method == "tools/call":
+            params = body.get("params", {})
+            tool_name = params.get("name", "")
+            arguments = params.get("arguments", {})
+            
+            if tool_name == "generate_clinical_handoff":
+                result = await generate_handoff(
+                    arguments.get("patient_fhir_context", {}),
+                    arguments.get("receiving_provider_specialty", "primary_care"),
+                    arguments.get("clinical_question", "")
+                )
+                return JSONResponse({
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "result": {"content": [{"type": "text", "text": str(result)}]}
+                })
+            else:
+                return JSONResponse({
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "error": {"code": -32601, "message": f"Tool not found: {tool_name}"}
+                })
+        
+        elif method == "notifications/initialized":
+            return JSONResponse({"jsonrpc": "2.0", "id": msg_id, "result": {}})
+        
+        else:
+            return JSONResponse({"jsonrpc": "2.0", "id": msg_id, "result": {}})
+    
+    except Exception as e:
+        return JSONResponse({"jsonrpc": "2.0", "id": "error", "error": {"code": -32603, "message": str(e)}})
+
+
+@app.get("/mcp")
+async def mcp_get():
+    return JSONResponse({
+        "status": "ok",
+        "protocol": "MCP",
+        "version": "2024-11-05",
+        "server": "ATLAS Clinical Handoff"
+    })
 
 
 @app.post("/generate-handoff")
@@ -149,11 +214,6 @@ async def health():
 @app.get("/mcp-test")
 async def mcp_test():
     return {"status": "MCP mounted", "endpoint": "/mcp"}
-
-
-# Mount MCP server to FastAPI app
-mcp_app = mcp_server.streamable_http_app()
-app.mount("/mcp", mcp_app)
 
 
 if __name__ == "__main__":

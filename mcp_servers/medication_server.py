@@ -1,16 +1,16 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from datetime import datetime, timezone
 from groq import Groq
 import json
 import re
-from mcp.server.fastmcp import FastMCP
+import uuid
 
 from shared.config import GROQ_MODEL, GROQ_API_KEY, GROQ_MAX_TOKENS, GROQ_TEMPERATURE
 
 app = FastAPI()
 client = Groq(api_key=GROQ_API_KEY)
-mcp_server = FastMCP("ATLAS Medication Safety")
 
 
 class MedicationRequest(BaseModel):
@@ -97,11 +97,8 @@ appear in high_risk_medications and flags."""
             temperature=GROQ_TEMPERATURE
         )
         raw_response_text = response.choices[0].message.content
-        
-        print("RAW GROQ RESPONSE:", raw_response_text)
 
         raw_text = raw_response_text.strip()
-        
         if raw_text.startswith("```"):
             lines = raw_text.split("\n")
             lines = [l for l in lines if not l.startswith("```")]
@@ -115,24 +112,17 @@ appear in high_risk_medications and flags."""
         try:
             parsed = json.loads(raw_text)
         except json.JSONDecodeError as e:
-            print(f"JSON PARSE ERROR: {e}")
-            print(f"ATTEMPTED TO PARSE: {raw_text}")
             parsed = {
                 "reconciled_medications": [],
                 "flags": [],
                 "prior_auth_required": [],
                 "high_risk_medications": [],
-                "summary": "Could not parse medication analysis.",
-                "raw_output": raw_text
+                "summary": "Could not parse medication analysis."
             }
-        
-        HIGH_RISK_KEYWORDS = [
-            "warfarin", "coumadin",
-            "insulin", "glargine", "aspart", "lispro",
-            "morphine", "oxycodone", "hydrocodone", "fentanyl",
-            "apixaban", "rivaroxaban", "dabigatran",
-            "digoxin", "lithium", "methotrexate"
-        ]
+
+        HIGH_RISK_KEYWORDS = ["warfarin", "coumadin", "insulin", "glargine", "aspart", "lispro",
+                            "morphine", "oxycodone", "hydrocodone", "fentanyl", "apixaban", 
+                            "rivaroxaban", "dabigatran", "digoxin", "lithium", "methotrexate"]
 
         all_med_names = []
         for med in patient_fhir_context.get("medications", []):
@@ -148,13 +138,7 @@ appear in high_risk_medications and flags."""
             if isinstance(f, dict):
                 normalized_flags.append(f)
             elif isinstance(f, str):
-                normalized_flags.append({
-                    "medication": f,
-                    "severity": "HIGH",
-                    "issue": f"High-risk medication detected: {f}",
-                    "recommendation": "Review before discharge",
-                    "notify_agents": ["prior_auth", "navigator", "handoff"]
-                })
+                normalized_flags.append({"medication": f, "severity": "HIGH", "issue": f"High-risk: {f}"})
 
         for med_name in all_med_names:
             for keyword in HIGH_RISK_KEYWORDS:
@@ -165,18 +149,15 @@ appear in high_risk_medications and flags."""
                         normalized_flags.append({
                             "medication": med_name,
                             "severity": "HIGH",
-                            "issue": f"{med_name} is a high-risk medication requiring close monitoring",
-                            "recommendation": "Ensure monitoring plan is in place before discharge",
+                            "issue": f"{med_name} is a high-risk medication",
+                            "recommendation": "Ensure monitoring plan in place",
                             "notify_agents": ["prior_auth", "navigator", "handoff"]
                         })
 
         parsed["high_risk_medications"] = confirmed_high_risk
         parsed["flags"] = normalized_flags
 
-        PRIOR_AUTH_TRIGGERS = [
-            "warfarin", "apixaban", "rivaroxaban", "dabigatran",
-            "insulin", "humira", "adalimumab", "etanercept"
-        ]
+        PRIOR_AUTH_TRIGGERS = ["warfarin", "apixaban", "rivaroxaban", "dabigatran", "insulin", "humira", "adalimumab", "etanercept"]
         prior_auth_list = parsed.get("prior_auth_required", [])
         for med_name in all_med_names:
             for keyword in PRIOR_AUTH_TRIGGERS:
@@ -204,27 +185,96 @@ appear in high_risk_medications and flags."""
         }
 
 
+@app.post("/mcp")
+async def mcp_endpoint(request: Request):
+    try:
+        body = await request.json()
+        method = body.get("method", "")
+        msg_id = body.get("id", str(uuid.uuid4()))
+        
+        if method == "initialize":
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "result": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {"tools": {}},
+                    "serverInfo": {"name": "ATLAS Medication Safety", "version": "1.0.0"}
+                }
+            })
+        
+        elif method == "tools/list":
+            return JSONResponse({
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "result": {
+                    "tools": [{
+                        "name": "reconcile_patient_medications",
+                        "description": "Reconcile and analyze patient medications for safety at hospital discharge. Flags high-risk medications, drug interactions, and prior authorization requirements.",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "patient_fhir_context": {"type": "object", "description": "Full FHIR patient context"},
+                                "patient_age": {"type": "integer", "description": "Patient age"}
+                            },
+                            "required": ["patient_fhir_context"]
+                        }
+                    }]
+                }
+            })
+        
+        elif method == "tools/call":
+            params = body.get("params", {})
+            tool_name = params.get("name", "")
+            arguments = params.get("arguments", {})
+            
+            if tool_name == "reconcile_patient_medications":
+                result = reconcile_medications(
+                    arguments.get("patient_fhir_context", {}),
+                    arguments.get("patient_age", 65)
+                )
+                return JSONResponse({
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "result": {"content": [{"type": "text", "text": str(result)}]}
+                })
+            else:
+                return JSONResponse({
+                    "jsonrpc": "2.0",
+                    "id": msg_id,
+                    "error": {"code": -32601, "message": f"Tool not found: {tool_name}"}
+                })
+        
+        elif method == "notifications/initialized":
+            return JSONResponse({"jsonrpc": "2.0", "id": msg_id, "result": {}})
+        
+        else:
+            return JSONResponse({"jsonrpc": "2.0", "id": msg_id, "result": {}})
+    
+    except Exception as e:
+        return JSONResponse({"jsonrpc": "2.0", "id": "error", "error": {"code": -32603, "message": str(e)}})
+
+
+@app.get("/mcp")
+async def mcp_get():
+    return JSONResponse({
+        "status": "ok",
+        "protocol": "MCP",
+        "version": "2024-11-05",
+        "server": "ATLAS Medication Safety"
+    })
+
+
+# Backward compatibility alias
+reconcile_medications = reconcile_medications
+
+
 @app.post("/reconcile-medications")
 async def reconcile_medications_endpoint(req: MedicationRequest):
     try:
         return reconcile_medications(req.patient_fhir_context, req.patient_age)
     except Exception as e:
         return {"error": str(e), "reconciled_medications": [], "flags": [], "prior_auth_required": [], "high_risk_medications": [], "summary": "", "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}
-
-
-@mcp_server.tool()
-async def reconcile_patient_medications(
-    patient_fhir_context: dict,
-    patient_age: int = 65
-) -> dict:
-    """Reconcile and analyze patient medications for safety 
-    at hospital discharge. Flags high-risk medications, drug 
-    interactions, and identifies medications requiring prior 
-    authorization."""
-    return reconcile_medications(
-        patient_fhir_context, 
-        patient_age
-    )
 
 
 @app.get("/health")
@@ -235,11 +285,6 @@ async def health():
 @app.get("/mcp-test")
 async def mcp_test():
     return {"status": "MCP mounted", "endpoint": "/mcp"}
-
-
-# Mount MCP server to FastAPI app
-mcp_app = mcp_server.streamable_http_app()
-app.mount("/mcp", mcp_app)
 
 
 if __name__ == "__main__":
