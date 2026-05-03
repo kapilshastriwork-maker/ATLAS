@@ -4,11 +4,13 @@ from datetime import datetime, timezone
 from groq import Groq
 import json
 import re
+from mcp.server.fastmcp import FastMCP
 
 from shared.config import GROQ_MODEL, GROQ_API_KEY, GROQ_MAX_TOKENS, GROQ_TEMPERATURE
 
 app = FastAPI()
 client = Groq(api_key=GROQ_API_KEY)
+mcp = FastMCP("ATLAS Prior Authorization")
 
 
 class PriorAuthRequest(BaseModel):
@@ -144,6 +146,28 @@ async def draft_prior_auth_endpoint(req: PriorAuthRequest):
 @app.get("/health")
 async def health():
     return {"status": "ok", "server": "prior_auth"}
+
+
+@mcp.tool()
+async def draft_prior_authorization(
+    patient_fhir_context: dict,
+    medications_requiring_auth: list,
+    services_requiring_auth: list = [],
+    insurance_plan_type: str = "commercial"
+) -> dict:
+    """Draft complete prior authorization letters with clinical 
+    justification for medications and services requiring insurance 
+    approval at discharge."""
+    return draft_prior_auth(
+        patient_fhir_context,
+        medications_requiring_auth,
+        services_requiring_auth,
+        insurance_plan_type
+    )
+
+
+# Mount MCP server to FastAPI app
+app.mount("/mcp", mcp.streamable_http_app())
 
 
 if __name__ == "__main__":

@@ -3,11 +3,13 @@ from pydantic import BaseModel
 from datetime import datetime, timezone
 from groq import Groq
 import json
+from mcp.server.fastmcp import FastMCP
 
 from shared.config import GROQ_MODEL, GROQ_API_KEY, GROQ_MAX_TOKENS, GROQ_TEMPERATURE
 
 app = FastAPI()
 client = Groq(api_key=GROQ_API_KEY)
+mcp = FastMCP("ATLAS Clinical Handoff")
 
 
 class HandoffRequest(BaseModel):
@@ -110,8 +112,25 @@ Return ONLY the handoff letter text. No markdown formatting. No JSON."""
         "handoff_letter": handoff_letter,
         "specialty": specialty,
         "patient_name": patient_name,
-"generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     }
+
+
+@mcp.tool()
+async def generate_clinical_handoff(
+    patient_fhir_context: dict,
+    receiving_provider_specialty: str,
+    clinical_question: str = ""
+) -> dict:
+    """Generate a tailored clinical handoff letter from FHIR 
+    patient data, customized for the receiving provider specialty.
+    Used during hospital discharge to communicate patient status
+    to the receiving care provider."""
+    return generate_handoff(
+        patient_fhir_context, 
+        receiving_provider_specialty, 
+        clinical_question
+    )
 
 
 @app.post("/generate-handoff")
@@ -125,6 +144,10 @@ async def generate_handoff_endpoint(req: HandoffRequest):
 @app.get("/health")
 async def health():
     return {"status": "ok", "server": "handoff"}
+
+
+# Mount MCP server to FastAPI app
+app.mount("/mcp", mcp.streamable_http_app())
 
 
 if __name__ == "__main__":

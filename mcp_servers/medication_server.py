@@ -4,11 +4,13 @@ from datetime import datetime, timezone
 from groq import Groq
 import json
 import re
+from mcp.server.fastmcp import FastMCP
 
 from shared.config import GROQ_MODEL, GROQ_API_KEY, GROQ_MAX_TOKENS, GROQ_TEMPERATURE
 
 app = FastAPI()
 client = Groq(api_key=GROQ_API_KEY)
+mcp = FastMCP("ATLAS Medication Safety")
 
 
 class MedicationRequest(BaseModel):
@@ -210,9 +212,28 @@ async def reconcile_medications_endpoint(req: MedicationRequest):
         return {"error": str(e), "reconciled_medications": [], "flags": [], "prior_auth_required": [], "high_risk_medications": [], "summary": "", "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}
 
 
+@mcp.tool()
+async def reconcile_patient_medications(
+    patient_fhir_context: dict,
+    patient_age: int = 65
+) -> dict:
+    """Reconcile and analyze patient medications for safety 
+    at hospital discharge. Flags high-risk medications, drug 
+    interactions, and identifies medications requiring prior 
+    authorization."""
+    return reconcile_medications(
+        patient_fhir_context, 
+        patient_age
+    )
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "server": "medication"}
+
+
+# Mount MCP server to FastAPI app
+app.mount("/mcp", mcp.streamable_http_app())
 
 
 if __name__ == "__main__":

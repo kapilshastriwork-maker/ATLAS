@@ -6,4 +6,4 @@ pydantic
 python-dotenv
 pytest
 pytest-asyncio
-mcp
+mcp[cli]>=1.0.0

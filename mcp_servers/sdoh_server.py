@@ -4,11 +4,13 @@ from datetime import datetime, timezone
 from groq import Groq
 import json
 import re
+from mcp.server.fastmcp import FastMCP
 
 from shared.config import GROQ_MODEL, GROQ_API_KEY, GROQ_MAX_TOKENS, GROQ_TEMPERATURE
 
 app = FastAPI()
 client = Groq(api_key=GROQ_API_KEY)
+mcp = FastMCP("ATLAS SDOH Screener")
 
 
 class SDOHRequest(BaseModel):
@@ -158,6 +160,21 @@ async def screen_sdoh_endpoint(req: SDOHRequest):
 @app.get("/health")
 async def health():
     return {"status": "ok", "server": "sdoh"}
+
+
+@mcp.tool()
+async def screen_social_determinants(
+    patient_fhir_context: dict
+) -> dict:
+    """Screen patient for social determinants of health risks 
+    at discharge including transportation, food security, housing, 
+    financial toxicity, and caregiver support. Returns risk score 
+    and community resource recommendations."""
+    return screen_sdoh(patient_fhir_context)
+
+
+# Mount MCP server to FastAPI app
+app.mount("/mcp", mcp.streamable_http_app())
 
 
 if __name__ == "__main__":

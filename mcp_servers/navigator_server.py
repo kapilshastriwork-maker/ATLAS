@@ -2,11 +2,13 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from datetime import datetime, timezone
 from groq import Groq
+from mcp.server.fastmcp import FastMCP
 
 from shared.config import GROQ_MODEL, GROQ_API_KEY, GROQ_MAX_TOKENS, GROQ_TEMPERATURE
 
 app = FastAPI()
 client = Groq(api_key=GROQ_API_KEY)
+mcp = FastMCP("ATLAS Patient Navigator")
 
 
 class NavigatorRequest(BaseModel):
@@ -165,6 +167,31 @@ async def generate_instructions_endpoint(req: NavigatorRequest):
 @app.get("/health")
 async def health():
     return {"status": "ok", "server": "navigator"}
+
+
+@mcp.tool()
+async def generate_patient_instructions(
+    patient_fhir_context: dict,
+    medication_flags: list = [],
+    high_risk_medications: list = [],
+    follow_up_plan: str = "",
+    discharge_destination: str = "home"
+) -> dict:
+    """Generate personalized discharge instructions in the 
+    patient's preferred language at 6th grade reading level. 
+    Includes medication guidance, warning signs, and follow-up 
+    timeline."""
+    return generate_instructions(
+        patient_fhir_context,
+        medication_flags,
+        high_risk_medications,
+        follow_up_plan,
+        discharge_destination
+    )
+
+
+# Mount MCP server to FastAPI app
+app.mount("/mcp", mcp.streamable_http_app())
 
 
 if __name__ == "__main__":
