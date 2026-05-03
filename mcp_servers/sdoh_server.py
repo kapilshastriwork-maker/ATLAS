@@ -118,8 +118,24 @@ async def mcp_endpoint(request: Request):
         if method == "initialize":
             return JSONResponse({
                 "jsonrpc": "2.0", "id": msg_id,
-                "result": {"protocolVersion": "2024-11-05", "capabilities": {"tools": {}},
-                          "serverInfo": {"name": "ATLAS SDOH Screener", "version": "1.0.0"}}
+                "result": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {
+                        "tools": {},
+                        "extensions": {
+                            "ai.promptopinion/fhir-context": {
+                                "scopes": [
+                                    {"name": "patient/Patient.rs", "required": True},
+                                    {"name": "patient/Condition.rs", "required": False},
+                                    {"name": "patient/MedicationRequest.rs", "required": False},
+                                    {"name": "patient/Observation.rs", "required": False},
+                                    {"name": "patient/AllergyIntolerance.rs", "required": False}
+                                ]
+                            }
+                        }
+                    },
+                    "serverInfo": {"name": "ATLAS SDOH Screener", "version": "1.0.0"}
+                }
             })
         
         elif method == "tools/list":
@@ -138,6 +154,17 @@ async def mcp_endpoint(request: Request):
             params = body.get("params", {})
             tool_name = params.get("name", "")
             arguments = params.get("arguments", {})
+            
+            # Extract FHIR context from PromptOpinion headers
+            headers = dict(request.headers)
+            fhir_server_url = headers.get("x-fhir-server-url", "")
+            fhir_access_token = headers.get("x-fhir-access-token", "")
+            patient_id = headers.get("x-patient-id", "")
+            
+            if patient_id and fhir_access_token:
+                print(f"FHIR context received via headers: patient={patient_id}")
+                arguments["fhir_patient_id"] = patient_id
+                arguments["fhir_server_url"] = fhir_server_url
             
             if tool_name == "screen_social_determinants":
                 result = screen_sdoh(arguments.get("patient_fhir_context", {}))
